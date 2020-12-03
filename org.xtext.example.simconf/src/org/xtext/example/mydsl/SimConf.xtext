@@ -1,0 +1,73 @@
+grammar org.xtext.example.mydsl.SimConf with org.eclipse.xtext.common.Terminals
+
+import "http://www.eclipse.org/emf/2002/Ecore" as ecore
+generate domainmodel "http://www.example.org/domainmodel/Domainmodel"
+
+Domainmodel:
+	config+=Config*;
+
+	// Root Config
+Config:
+	'configure' name=Simulator
+	'{'
+	(input=Input? &
+	output=Output? &
+	time=Time? &
+	routing=Routing? &
+	report=Report?)
+	'}';
+
+	// Config for input
+Input:
+	'input' '{' input=(FileBasedInput | GeneratorInput) '}';
+
+GeneratorInput:
+	'generate' type=GeneratorType 'size' size=INT;
+
+FileBasedInput:
+	{FileBasedInput}
+	(('netFile' netFile=STRING)? &
+	('routeFiles' routeFiles=List)? &
+	('additionalFiles' additionalFiles=List)?);
+
+	// Config for output
+Output:
+	{Output} 'output' '{'
+	((humanReadable?='humanReadable')? &
+	('statisticFile' statisticFile=STRING)? &
+	('summaryFile' summaryFile=STRING)? &
+	('tripinfoFile' tripinfoFile=STRING)?)
+	'}';
+
+	// Config for time
+Time:
+	{Time} 'time' '{'
+	(('start_at' start=INT 'seconds')? &
+	('end_at' end=INT 'seconds')? &
+	('steplength' steplength=INT 'seconds')?)
+	'}';
+
+Routing:
+	{Routing} 'routing' '{'
+	(('algorithm' algorithm=Alogrithm)?)
+	'}';
+
+Report:
+	{Report} 'report' '{'
+	((verbose?='verbose')? &
+	('logFile' logFile=STRING)?)
+	'}';
+
+	// Utils/Tokens
+List:
+	list+=STRING (',' list+=STRING)*;
+
+enum GeneratorType:
+	GRID | SPRIDER | RANDOM;
+
+enum Alogrithm:
+	dijkstra | astar | CH | CHWrapper;
+
+enum Simulator:
+	SUMO;
+	
