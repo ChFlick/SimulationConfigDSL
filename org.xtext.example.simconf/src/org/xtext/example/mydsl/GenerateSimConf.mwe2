@@ -43,6 +43,10 @@ Workflow {
 			serializer = {
 				generateStub = false
 			}
+			outline = {
+				generateStub = true
+				generateXtendStub = true
+			}
 			validator = {
 				composedCheck = "org.eclipse.xtext.validation.NamesAreUniqueValidator"
 				// Generates checks for @Deprecated grammar annotations, an IssueProvider and a corresponding PropertyPage
