@@ -16,9 +16,18 @@ import org.xtext.example.mydsl.domainmodel.Report
 import org.xtext.example.mydsl.domainmodel.Routing
 import org.xtext.example.mydsl.domainmodel.Simulator
 import org.xtext.example.mydsl.domainmodel.Time
+import org.eclipse.core.runtime.Path
+import org.eclipse.core.resources.ResourcesPlugin
 
 class SimConfGenerator extends AbstractGenerator {
+	var path = ""
+	
 	override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorContext context) {
+		val wsRoot = ResourcesPlugin.workspace.root
+		val path = new Path(fsa.getURI("").toPlatformString(true))
+		val file = wsRoot.getFile(path)
+		path = file.location.toPortableString
+		
 		for (config : resource.getAllContents().toIterable.filter(Config)) {
 			if (config.name === Simulator.SUMO) {
 				fsa.generateFile("run.sumocfg", config.compile)
@@ -63,8 +72,8 @@ class SimConfGenerator extends AbstractGenerator {
 				</input>
 			'''
 		} else {
-			val NET_FILE = "generated.net.xml"
-			val TRIP_FILE = "generated.trips.xml"
+			val NET_FILE = path + "/generated.net.xml"
+			val TRIP_FILE = path + "/generated.trips.xml"
 			val generatorInput = input.input as GeneratorInput
 			val type = generatorInput.type
 			val size = generatorInput.size
