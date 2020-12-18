@@ -4,6 +4,9 @@ src-gen/
 xtend-gen/
 *.xml_gen
 
+# Scenario convert
+scenario-convert.jar
+
 # Java related
 target/**
 *.jar
