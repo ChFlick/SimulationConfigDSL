@@ -33,10 +33,10 @@ class SimConfGenerator extends AbstractGenerator {
 		val path = new org.eclipse.core.runtime.Path(fsa.getURI("").toPlatformString(true))
 		val file = wsRoot.getFile(path)
 		path = file.location.toPortableString
-		
-		Files.walk(Path.of(this.path))
-			.map[it.toFile()]
-			.forEach[it.delete()]
+
+		if(Files.isDirectory(Path.of(this.path))) {
+			Files.walk(Path.of(this.path)).map[it.toFile()].forEach[it.delete()]
+		}
 
 		val domainmodel = resource.contents.get(0) as Domainmodel
 
@@ -118,52 +118,52 @@ class SimConfGenerator extends AbstractGenerator {
 			if (config.name === Simulator.SUMO) {
 				val sumoCfgPath = mode == Mode.MOSAIC ? "sumo/generated.sumocfg" : "generated.sumocfg"
 				fsa.generateFile(sumoCfgPath, config.compile)
-				
-				if(mode == Mode.DOCKER) {
+
+				if (mode == Mode.DOCKER) {
 					fsa.generateFile("README.md", '''
-					Dockerfile to run SUMO
-					======================
-					
-					build
-					-----
-					
-					`docker build -t sumo:latest .`
-					
-					run
-					---
-					
-					`docker run -it sumo`
+						Dockerfile to run SUMO
+						======================
+						
+						build
+						-----
+						
+						`docker build -t sumo:latest .`
+						
+						run
+						---
+						
+						`docker run -it sumo`
 					''')
-					
+
 					fsa.generateFile("Dockerfile", '''
-					FROM ubuntu:bionic
-					
-					ENV SCRIPT_FOLDER /app
-					ENV SUMO_VERSION 1.8.0
-					ENV SUMO_HOME /usr/share/sumo
-					
-					RUN apt-get update && apt-get install -y \
-					    cmake \
-					    python3-pip \
-					    g++ \
-					    libxerces-c-dev libfox-1.6-dev libgdal-dev libproj-dev libgl2ps-dev \
-					    swig \
-					    wget
-					RUN wget http://downloads.sourceforge.net/project/sumo/sumo/version%20$SUMO_VERSION/sumo-src-$SUMO_VERSION.tar.gz
-					RUN tar xzf sumo-src-$SUMO_VERSION.tar.gz && \
-					    mv sumo-$SUMO_VERSION $SUMO_HOME && \
-					    rm sumo-src-$SUMO_VERSION.tar.gz
-					
-					RUN cd $SUMO_HOME  && \
-					    mkdir build/cmake-build && cd build/cmake-build  && \
-					    cmake ../..  && \
-					    make -j$(nproc)
-					
-					ENV PATH "$PATH:/$SUMO_HOME/bin"
-					
-					WORKDIR $SCRIPT_FOLDER
-										
-					COPY . .
+						FROM ubuntu:bionic
+						
+						ENV SCRIPT_FOLDER /app
+						ENV SUMO_VERSION 1.8.0
+						ENV SUMO_HOME /usr/share/sumo
+						
+						RUN apt-get update && apt-get install -y \
+						    cmake \
+						    python3-pip \
+						    g++ \
+						    libxerces-c-dev libfox-1.6-dev libgdal-dev libproj-dev libgl2ps-dev \
+						    swig \
+						    wget
+						RUN wget http://downloads.sourceforge.net/project/sumo/sumo/version%20$SUMO_VERSION/sumo-src-$SUMO_VERSION.tar.gz
+						RUN tar xzf sumo-src-$SUMO_VERSION.tar.gz && \
+						    mv sumo-$SUMO_VERSION $SUMO_HOME && \
+						    rm sumo-src-$SUMO_VERSION.tar.gz
+						
+						RUN cd $SUMO_HOME  && \
+						    mkdir build/cmake-build && cd build/cmake-build  && \
+						    cmake ../..  && \
+						    make -j$(nproc)
+						
+						ENV PATH "$PATH:/$SUMO_HOME/bin"
+						
+						WORKDIR $SCRIPT_FOLDER
+											
+						COPY . .
 					''')
 				}
 			}
@@ -214,12 +214,14 @@ class SimConfGenerator extends AbstractGenerator {
 				</input>
 			'''
 		} else {
-			val NET_FILE = path + (mode == Mode.MOSAIC ? "/sumo/generated.net.xml" : "/generated.net.xml")
-			val ROUTE_FILE = path + (mode == Mode.MOSAIC ? "/sumo/generated.rou.xml" : "/generated.rou.xml")
-			if(mode == Mode.MOSAIC) {
+			val NET_NAME = "generated.net.xml"
+			val ROUTE_NAME = "generated.rou.xml"
+			val NET_FILE = path + "/" + (mode == Mode.MOSAIC ? "sumo/" + NET_NAME : NET_NAME)
+			val ROUTE_FILE = path + "/" + (mode == Mode.MOSAIC ? "sumo/" + ROUTE_NAME : ROUTE_NAME)
+			if (mode == Mode.MOSAIC) {
 				new File(path + "/sumo").mkdir()
 			}
-			
+
 			val generatorInput = input.input as GeneratorInput
 			val type = generatorInput.type
 			val size = generatorInput.size
@@ -238,7 +240,7 @@ class SimConfGenerator extends AbstractGenerator {
 			}
 
 			val generatorOutput = new BufferedReader(new InputStreamReader(generationProcess.errorStream));
-			
+
 			generatorOutput.readLine()
 
 			while (generationProcess.alive) {
@@ -254,16 +256,23 @@ class SimConfGenerator extends AbstractGenerator {
 			}
 
 			// Trips
-			if(mode == Mode.MOSAIC) {
-				val tripsProcess = new ProcessBuilder("java", "-jar", scenarioConvertPath,
-					"--sumo2db", "-d", path + "/application/generated.db", "-i", ROUTE_FILE
+			if (mode == Mode.MOSAIC) {
+				val tripsProcess = new ProcessBuilder(
+					"java",
+					"-jar",
+					scenarioConvertPath,
+					"--sumo2db",
+					"-d",
+					path + "/application/generated.db",
+					"-i",
+					ROUTE_FILE
 				).start()
 
 				val tripsOutput = new BufferedReader(new InputStreamReader(tripsProcess.errorStream));
-	
+
 				while (tripsProcess.alive) {
 				}
-	
+
 				message = "";
 				line = "";
 				while ((line = tripsOutput.readLine()) !== null) {
@@ -274,13 +283,13 @@ class SimConfGenerator extends AbstractGenerator {
 				}
 			} else {
 				val tripsProcess = new ProcessBuilder(System.getenv("SUMO_HOME") + "/tools/randomTrips.py", "-o",
-				ROUTE_FILE, "-n", NET_FILE).start()
+					ROUTE_FILE, "-n", NET_FILE).start()
 
 				val tripsOutput = new BufferedReader(new InputStreamReader(tripsProcess.errorStream));
-	
+
 				while (tripsProcess.alive) {
 				}
-	
+
 				message = "";
 				line = "";
 				while ((line = tripsOutput.readLine()) !== null) {
@@ -293,8 +302,13 @@ class SimConfGenerator extends AbstractGenerator {
 
 			return '''
 				<input>
-					<net-file value="«NET_FILE»"/>
-					<route-files value="«ROUTE_FILE»"/>
+					«IF mode == Mode.DOCKER »
+						<net-file value="«NET_NAME»"/>
+						<route-files value="«ROUTE_NAME»"/>
+					« ELSE »
+						<net-file value="«NET_FILE»"/>
+						<route-files value="«ROUTE_FILE»"/>
+					«ENDIF»
 				</input>
 			'''
 		}
@@ -358,7 +372,7 @@ class SimConfGenerator extends AbstractGenerator {
 		return '''
 			<report>
 				<verbose value="«report.verbose ? "true" : "false"»"/>
-				«IF report.logFile !== null»
+				«IF report.logFile !== null && mode !== Mode.DOCKER»
 					<log value="«report.logFile»"/>
 				«ENDIF»
 			</report>
