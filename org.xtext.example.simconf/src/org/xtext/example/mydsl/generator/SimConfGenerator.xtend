@@ -34,7 +34,7 @@ class SimConfGenerator extends AbstractGenerator {
 		val file = wsRoot.getFile(path)
 		path = file.location.toPortableString
 
-		if(Files.isDirectory(Path.of(this.path))) {
+		if (Files.isDirectory(Path.of(this.path))) {
 			Files.walk(Path.of(this.path)).map[it.toFile()].forEach[it.delete()]
 		}
 
@@ -119,7 +119,7 @@ class SimConfGenerator extends AbstractGenerator {
 				val sumoCfgPath = mode == Mode.MOSAIC ? "sumo/generated.sumocfg" : "generated.sumocfg"
 				fsa.generateFile(sumoCfgPath, config.compile)
 
-				if (mode == Mode.DOCKER) {
+				if (mode == Mode.DOCKER || mode == Mode.DOCKER_TRA_CI) {
 					fsa.generateFile("README.md", '''
 						Dockerfile to run SUMO
 						======================
@@ -132,7 +132,11 @@ class SimConfGenerator extends AbstractGenerator {
 						run
 						---
 						
-						`docker run -it sumo`
+						`docker run -i «IF mode == Mode.DOCKER_TRA_CI» -p 8081:8081 «ENDIF» sumo`
+						
+						«IF mode == Mode.DOCKER_TRA_CI»
+						When the container has started, you can connect your TraCI application at the container on port 8081.
+						«ENDIF»								
 					''')
 
 					fsa.generateFile("Dockerfile", '''
@@ -164,6 +168,8 @@ class SimConfGenerator extends AbstractGenerator {
 						WORKDIR $SCRIPT_FOLDER
 											
 						COPY . .
+						
+						CMD ["sumo","-c","generated.sumocfg"«IF mode == Mode.DOCKER_TRA_CI»,"--remote-port","8081"«ENDIF»]
 					''')
 				}
 			}
@@ -302,10 +308,10 @@ class SimConfGenerator extends AbstractGenerator {
 
 			return '''
 				<input>
-					«IF mode == Mode.DOCKER »
+					«IF mode == Mode.DOCKER || mode == Mode.DOCKER_TRA_CI »
 						<net-file value="«NET_NAME»"/>
 						<route-files value="«ROUTE_NAME»"/>
-					« ELSE »
+					«ELSE»
 						<net-file value="«NET_FILE»"/>
 						<route-files value="«ROUTE_FILE»"/>
 					«ENDIF»
@@ -372,7 +378,7 @@ class SimConfGenerator extends AbstractGenerator {
 		return '''
 			<report>
 				<verbose value="«report.verbose ? "true" : "false"»"/>
-				«IF report.logFile !== null && mode !== Mode.DOCKER»
+				«IF report.logFile !== null && mode !== Mode.DOCKER && mode !== Mode.DOCKER_TRA_CI»
 					<log value="«report.logFile»"/>
 				«ENDIF»
 			</report>
