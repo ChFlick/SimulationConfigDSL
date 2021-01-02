@@ -45,81 +45,10 @@ class SimConfGenerator extends AbstractGenerator {
 
 		mode = domainmodel.mode ?: Mode.SIMPLE
 		scenarioConvertPath = domainmodel.scenarioConvertPath ?: "scenario-convert.jar"
-		
-		if (mode == Mode.MOSAIC) {
-			fsa.generateFile("scenario_config.json", '''
-				{
-				    "simulation": {
-				        "id": "Generation",
-				        "duration": "60s",
-				        "randomSeed": 268965854,
-				        "projection": {
-				            "centerCoordinates": {
-				                "latitude": 52.23,
-				                "longitude": 11.82
-				            },
-				            "cartesianOffset": {
-				                "x": -691174.08,
-				                "y": -5789894.65
-				            }
-				        },
-				        "network": {
-				            "netMask": "255.255.0.0",
-				            "vehicleNet": "10.1.0.0",
-				            "rsuNet": "10.2.0.0",
-				            "tlNet": "10.3.0.0",
-				            "csNet": "10.4.0.0",
-				            "serverNet": "10.5.0.0",
-				            "tmcNet": "10.6.0.0"
-				        }
-				    },
-				    "federates": {
-				        "application": false,
-				        "output": false,
-				        "sns": false,
-				        "cell": false,
-				        "sumo": «domainmodel.config.findFirst[it.name == Simulator.SUMO] === null ? "true" : "false"»
-				    }
-				}					
-			''')
-
-			fsa.generateFile("mapping/mapping_config.json", '''
-				{
-				    "prototypes": [
-				        {
-				            "name": "car",
-				            "accel": 2.6,
-				            "decel": 4.5,
-				            "length": 5.00,
-				            "maxSpeed": 70.0,
-				            "minGap": 2.5,
-				            "sigma": 0.5,
-				            "tau": 1,
-				            "deviations": {
-				                "speedFactor": 0.1
-				            }
-				        }
-				    ],
-				    "vehicles": [
-				        {
-				            "startingTime": 1.0,
-				            "targetFlow": 6000,
-				            "maxNumberVehicles": 400,
-				            "route": "1",
-				            "types": [
-				                {
-				                    "name": "car"
-				                }
-				            ]
-				        }
-					]
-				}
-			''')
-		}
 
 		for (config : domainmodel.config) {
 			if (config.name === Simulator.SUMO) {
-				val sumoCfgPath = mode == Mode.MOSAIC ? "sumo/generated.sumocfg" : "generated.sumocfg"
+				val sumoCfgPath = "generated.sumocfg"
 				fsa.generateFile(sumoCfgPath, config.compile)
 
 				if (mode == Mode.DOCKER || mode == Mode.DOCKER_TRA_CI) {
@@ -180,14 +109,9 @@ class SimConfGenerator extends AbstractGenerator {
 	}
 
 	def compile(Config config) '''
-		«IF mode != Mode.MOSAIC »
-			<?xml version="1.0" encoding="UTF-8"?>
-		«ENDIF»
-		
 		<configuration
-			«IF mode != Mode.MOSAIC »
-				xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd"
-			«ENDIF»
+				xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+				xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd"
 		>
 			
 			«config.input.compile»
@@ -225,8 +149,8 @@ class SimConfGenerator extends AbstractGenerator {
 		} else {
 			val NET_NAME = "generated.net.xml"
 			val ROUTE_NAME = "generated.rou.xml"
-			val NET_FILE = path + "/" + (mode == Mode.MOSAIC ? "sumo/" + NET_NAME : NET_NAME)
-			val ROUTE_FILE = path + "/" + (mode == Mode.MOSAIC ? "sumo/" + ROUTE_NAME : ROUTE_NAME)
+			val NET_FILE = path + "/" + NET_NAME
+			val ROUTE_FILE = path + "/" + ROUTE_NAME
 			if (mode == Mode.MOSAIC) {
 				new File(path + "/sumo").mkdir()
 			}
@@ -294,50 +218,23 @@ class SimConfGenerator extends AbstractGenerator {
 			}
 
 			// Trips
-			if (mode == Mode.MOSAIC) {
-				val tripsProcess = new ProcessBuilder(
-					"java",
-					"-jar",
-					scenarioConvertPath,
-					"--sumo2db",
-					"-d",
-					path + "/application/generated.db",
-					"-i",
-					ROUTE_FILE
-				).start()
+			val tripsProcess = new ProcessBuilder(System.getenv("SUMO_HOME") + "/tools/randomTrips.py", "-o",
+				ROUTE_FILE, "-n", NET_FILE).start()
 
-				val tripsOutput = new BufferedReader(new InputStreamReader(tripsProcess.errorStream));
+			val tripsOutput = new BufferedReader(new InputStreamReader(tripsProcess.errorStream));
 
-				while (tripsProcess.alive) {
-				}
-
-				message = "";
-				line = "";
-				while ((line = tripsOutput.readLine()) !== null) {
-					message = message + line + "\n";
-				}
-				if (!message.empty) {
-					throw new RuntimeException(message);
-				}
-			} else {
-				val tripsProcess = new ProcessBuilder(System.getenv("SUMO_HOME") + "/tools/randomTrips.py", "-o",
-					ROUTE_FILE, "-n", NET_FILE).start()
-
-				val tripsOutput = new BufferedReader(new InputStreamReader(tripsProcess.errorStream));
-
-				while (tripsProcess.alive) {
-				}
-
-				message = "";
-				line = "";
-				while ((line = tripsOutput.readLine()) !== null) {
-					message = message + line + "\n";
-				}
-				if (message.contains("Quitting (on error)")) {
-					throw new RuntimeException(message);
-				}
+			while (tripsProcess.alive) {
 			}
 
+			message = "";
+			line = "";
+			while ((line = tripsOutput.readLine()) !== null) {
+				message = message + line + "\n";
+			}
+			if (message.contains("Quitting (on error)")) {
+				throw new RuntimeException(message);
+			}
+			
 			return '''
 				<input>
 					«IF mode == Mode.DOCKER || mode == Mode.DOCKER_TRA_CI »

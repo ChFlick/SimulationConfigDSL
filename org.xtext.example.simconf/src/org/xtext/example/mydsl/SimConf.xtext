@@ -9,7 +9,7 @@ Domainmodel:
 	config+=Config+;
 
 enum Mode:
-	Simple | Docker | Docker_TraCI | MOSAIC;
+	Simple | Docker | Docker_TraCI;
 
 	// Root Config
 Config:
