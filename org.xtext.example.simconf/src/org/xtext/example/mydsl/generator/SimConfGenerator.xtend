@@ -135,7 +135,7 @@ class SimConfGenerator extends AbstractGenerator {
 						`docker run -i «IF mode == Mode.DOCKER_TRA_CI» -p 8081:8081 «ENDIF» sumo`
 						
 						«IF mode == Mode.DOCKER_TRA_CI»
-						When the container has started, you can connect your TraCI application at the container on port 8081.
+							When the container has started, you can connect your TraCI application at the container on port 8081.
 						«ENDIF»								
 					''')
 
@@ -233,16 +233,45 @@ class SimConfGenerator extends AbstractGenerator {
 			val size = generatorInput.size
 
 			// Net
+			var seed = System.currentTimeMillis
+			if (generatorInput.randomSeed > 0) {
+				seed = generatorInput.randomSeed
+			}
+
 			val generationProcess = switch type {
 				case GeneratorType.GRID:
-					new ProcessBuilder("netgenerate", "-o", NET_FILE, "--grid", "--grid.number", String.valueOf(size)).
-						start()
+					new ProcessBuilder(
+						"netgenerate",
+						"-o",
+						NET_FILE,
+						"--grid",
+						"--grid.number",
+						String.valueOf(size),
+						"--seed",
+						seed.toString()
+					).start()
 				case GeneratorType.RANDOM:
-					new ProcessBuilder("netgenerate", "-o", NET_FILE, "--rand", "--rand.iterations",
-						String.valueOf(size)).start()
+					new ProcessBuilder(
+						"netgenerate",
+						"-o",
+						NET_FILE,
+						"--rand",
+						"--rand.iterations",
+						String.valueOf(size),
+						"--seed",
+						seed.toString()
+					).start()
 				case GeneratorType.SPIDER:
-					new ProcessBuilder("netgenerate", "-o", NET_FILE, "--spider", "--spider.arm-number",
-						String.valueOf(size)).start()
+					new ProcessBuilder(
+						"netgenerate",
+						"-o",
+						NET_FILE,
+						"--spider",
+						"--spider.arm-number",
+						String.valueOf(size),
+						"--seed",
+						seed.toString()
+					).start()
 			}
 
 			val generatorOutput = new BufferedReader(new InputStreamReader(generationProcess.errorStream));

@@ -27,7 +27,8 @@ Input:
 	'input' '{' input=(FileBasedInput | GeneratorInput) '}';
 
 GeneratorInput:
-	'generate' type=GeneratorType 'size' size=INT;
+	'generate' type=GeneratorType 'size' size=INT
+	('random-seed' randomSeed=INT)?;
 
 FileBasedInput:
 	{FileBasedInput}
