@@ -34,6 +34,9 @@ class SimConfGenerator extends AbstractGenerator {
 		val file = wsRoot.getFile(path)
 		path = file.location.toPortableString
 
+		// Ensure that the src-gen folder is there
+		fsa.generateFile("empty", "")
+
 		if (Files.isDirectory(Path.of(this.path))) {
 			Files.walk(Path.of(this.path)).map[it.toFile()].forEach[it.delete()]
 		}
@@ -42,7 +45,7 @@ class SimConfGenerator extends AbstractGenerator {
 
 		mode = domainmodel.mode ?: Mode.SIMPLE
 		scenarioConvertPath = domainmodel.scenarioConvertPath ?: "scenario-convert.jar"
-
+		
 		if (mode == Mode.MOSAIC) {
 			fsa.generateFile("scenario_config.json", '''
 				{
@@ -233,7 +236,7 @@ class SimConfGenerator extends AbstractGenerator {
 			val size = generatorInput.size
 
 			// Net
-			var seed = System.currentTimeMillis
+			var seed = 23423
 			if (generatorInput.randomSeed > 0) {
 				seed = generatorInput.randomSeed
 			}
@@ -248,7 +251,7 @@ class SimConfGenerator extends AbstractGenerator {
 						"--grid.number",
 						String.valueOf(size),
 						"--seed",
-						seed.toString()
+						Integer.toString(seed)
 					).start()
 				case GeneratorType.RANDOM:
 					new ProcessBuilder(
@@ -259,7 +262,7 @@ class SimConfGenerator extends AbstractGenerator {
 						"--rand.iterations",
 						String.valueOf(size),
 						"--seed",
-						seed.toString()
+						Integer.toString(seed)
 					).start()
 				case GeneratorType.SPIDER:
 					new ProcessBuilder(
@@ -270,7 +273,7 @@ class SimConfGenerator extends AbstractGenerator {
 						"--spider.arm-number",
 						String.valueOf(size),
 						"--seed",
-						seed.toString()
+						Integer.toString(seed)
 					).start()
 			}
 
