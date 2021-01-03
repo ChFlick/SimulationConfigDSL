@@ -48,6 +48,29 @@ class SimConfGenerator extends AbstractGenerator {
 
 		for (config : domainmodel.config) {
 			if (config.name === Simulator.SUMO) {
+				if (mode == Mode.SIMPLE) {
+					fsa.generateFile("start-sumo.sh", '''
+						#!/bin/bash
+						sumo -c ./generated.sumocfg
+					''')
+					fsa.generateFile("start-sumo-gui.sh", '''
+						#!/bin/bash
+						sumo-gui -c ./generated.sumocfg
+					''')
+
+					fsa.generateFile("start-sumo-traci.sh", '''
+						#!/bin/bash
+						sumo -c ./generated.sumocfg --remote-port 8081
+					''')
+
+					fsa.generateFile("README.md", '''
+						# SUMO Scenario
+						- Execute `start-sumo.sh` to run the scenario in SUMO
+						- Execute `start-sumo-gui.sh` to run the scenario in SUMO with GUI
+						- Execute `start-sumo-traci.sh` to run the scenario in SUMO with a TraCI Server listening on Port `8081`
+					''')
+				}
+
 				val sumoCfgPath = "generated.sumocfg"
 				fsa.generateFile(sumoCfgPath, config.compile)
 
@@ -151,9 +174,6 @@ class SimConfGenerator extends AbstractGenerator {
 			val ROUTE_NAME = "generated.rou.xml"
 			val NET_FILE = path + "/" + NET_NAME
 			val ROUTE_FILE = path + "/" + ROUTE_NAME
-			if (mode == Mode.MOSAIC) {
-				new File(path + "/sumo").mkdir()
-			}
 
 			val generatorInput = input.input as GeneratorInput
 			val type = generatorInput.type
@@ -234,7 +254,7 @@ class SimConfGenerator extends AbstractGenerator {
 			if (message.contains("Quitting (on error)")) {
 				throw new RuntimeException(message);
 			}
-			
+
 			return '''
 				<input>
 					«IF mode == Mode.DOCKER || mode == Mode.DOCKER_TRA_CI »
