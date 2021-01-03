@@ -5,7 +5,6 @@ generate domainmodel "http://www.example.org/domainmodel/Domainmodel"
 
 Domainmodel:
 	('mode' mode=Mode)?
-	('scenario-convert-path' scenarioConvertPath=STRING)?
 	config+=Config+;
 
 enum Mode:
@@ -17,6 +16,7 @@ Config:
 	'{'
 	(input=Input &
 	output=Output? &
+	processing=Processing? &
 	time=Time? &
 	routing=Routing? &
 	report=Report?)
@@ -35,6 +35,11 @@ FileBasedInput:
 	(('netFile' netFile=STRING) &
 	('routeFiles' routeFiles=List)? &
 	('additionalFiles' additionalFiles=List)?);
+
+Processing:
+	{Processing} 'processing' '{'
+		('scale' scale=DOUBLE)?
+	'}';
 
 	// Config for output
 Output:
@@ -76,4 +81,6 @@ enum Alogrithm:
 
 enum Simulator:
 	SUMO;
+	
+DOUBLE returns ecore::EDouble : INT* ('.' INT+)?;
 	

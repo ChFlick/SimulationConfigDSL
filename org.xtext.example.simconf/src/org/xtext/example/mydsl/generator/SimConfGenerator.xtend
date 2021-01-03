@@ -22,11 +22,12 @@ import org.xtext.example.mydsl.domainmodel.Report
 import org.xtext.example.mydsl.domainmodel.Routing
 import org.xtext.example.mydsl.domainmodel.Simulator
 import org.xtext.example.mydsl.domainmodel.Time
+import org.xtext.example.mydsl.domainmodel.Processing
+import java.nio.file.StandardCopyOption
 
 class SimConfGenerator extends AbstractGenerator {
 	var String path
 	var Mode mode
-	var String scenarioConvertPath
 
 	override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorContext context) {
 		val wsRoot = ResourcesPlugin.workspace.root
@@ -44,7 +45,6 @@ class SimConfGenerator extends AbstractGenerator {
 		val domainmodel = resource.contents.get(0) as Domainmodel
 
 		mode = domainmodel.mode ?: Mode.SIMPLE
-		scenarioConvertPath = domainmodel.scenarioConvertPath ?: "scenario-convert.jar"
 
 		for (config : domainmodel.config) {
 			if (config.name === Simulator.SUMO) {
@@ -76,20 +76,22 @@ class SimConfGenerator extends AbstractGenerator {
 
 				if (mode == Mode.DOCKER || mode == Mode.DOCKER_TRA_CI) {
 					fsa.generateFile("README.md", '''
-						Dockerfile to run SUMO
-						======================
+						# Dockerfile to run the SUMO Scenario
 						
-						build
-						-----
+						## build						
+						To build the docker image run:
+						```
+						docker build -t sumo:latest .
+						``
 						
-						`docker build -t sumo:latest .`
-						
-						run
-						---
-						
-						`docker run -i «IF mode == Mode.DOCKER_TRA_CI» -p 8081:8081 «ENDIF» sumo`
+						## run
+						To execute the docker image after it is built run:						
+						```
+						docker run -i «IF mode == Mode.DOCKER_TRA_CI» -p 8081:8081 «ENDIF» sumo
+						```
 						
 						«IF mode == Mode.DOCKER_TRA_CI»
+							## TraCI
 							When the container has started, you can connect your TraCI application at the container on port 8081.
 						«ENDIF»								
 					''')
@@ -140,6 +142,8 @@ class SimConfGenerator extends AbstractGenerator {
 			«config.input.compile»
 		
 			«config.output.compile»
+			
+			«config.processing.compile»
 		
 			«config.time.compile»
 		
@@ -156,6 +160,54 @@ class SimConfGenerator extends AbstractGenerator {
 
 		if (input.input instanceof FileBasedInput) {
 			var fileInput = input.input as FileBasedInput
+			
+			if(mode == Mode.DOCKER || mode == Mode.DOCKER_TRA_CI) {
+				if(fileInput.netFile !== null) {
+					if(fileInput.netFile.indexOf("/") > -1) {
+						Files.copy(
+							Path.of(fileInput.netFile),
+							Path.of(path + "/" + new File(fileInput.netFile).name),
+							StandardCopyOption.REPLACE_EXISTING
+						)
+					}
+					
+					fileInput.routeFiles.list.forEach[
+						if(it.indexOf("/") > -1) {
+							Files.copy(
+								Path.of(it),
+								Path.of(path + "/" + new File(it).name),
+								StandardCopyOption.REPLACE_EXISTING
+							)
+						}
+					]
+					
+					fileInput.additionalFiles.list.forEach[
+						if(it.indexOf("/") > -1) {
+							Files.copy(
+								Path.of(it),
+								Path.of(path + "/" + new File(it).name),
+								StandardCopyOption.REPLACE_EXISTING
+							)
+						}
+					]
+					
+					return '''
+						<input>
+							«IF fileInput.netFile !== null »
+								<net-file value="« new File(fileInput.netFile).name»"/>
+							«ENDIF»
+							«IF fileInput.routeFiles !== null »
+								<route-files value="«fileInput.routeFiles.list.map[new File(it).name].join(",")»"/>
+							«ENDIF»
+							«IF fileInput.additionalFiles !== null »
+								<additional-files value="«fileInput.additionalFiles.list.map[new File(it).name].join(",")»"/>
+							«ENDIF»
+						</input>
+					'''
+					
+				}
+			}
+			
 			return '''
 				<input>
 					«IF fileInput.netFile !== null »
@@ -303,7 +355,7 @@ class SimConfGenerator extends AbstractGenerator {
 				«IF time.steplength > 0 »
 					<step-length value="«time.steplength»"/>
 				«ENDIF»
-			</output>
+			</time>
 		'''
 	}
 
@@ -316,6 +368,18 @@ class SimConfGenerator extends AbstractGenerator {
 			<routing>
 				<routing-algorithm value="«routing.algorithm !== null ? routing.algorithm.literal : "dijkstra"»"/>
 			</routing>
+		'''
+	}
+	
+	def compile(Processing processing) {
+		if (processing === null) {
+			return ""
+		}
+
+		return '''
+			<processing>
+				<scale value="«processing.scale > 0.0 ? processing.scale»"/>
+			</processing>
 		'''
 	}
 
