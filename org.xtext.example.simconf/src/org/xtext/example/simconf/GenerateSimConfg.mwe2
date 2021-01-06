@@ -1,4 +1,4 @@
-module org.xtext.example.mydsl.GenerateSimConf
+module org.xtext.example.simconf.GenerateSimConfg
 
 import org.eclipse.xtext.xtext.generator.*
 import org.eclipse.xtext.xtext.generator.model.project.*
@@ -6,7 +6,7 @@ import org.eclipse.xtext.xtext.generator.model.project.*
 var rootPath = ".."
 
 Workflow {
-
+	
 	component = XtextGenerator {
 		configuration = {
 			project = StandardProjectConfig {
@@ -31,8 +31,9 @@ Workflow {
 			}
 		}
 		language = StandardLanguage {
-			name = "org.xtext.example.mydsl.SimConf"
+			name = "org.xtext.example.simconf.SimConfg"
 			fileExtensions = "simconf"
+			
 			labelProvider = {
 				generateStub = true
 			}
@@ -48,7 +49,7 @@ Workflow {
 				generateXtendStub = true
 			}
 			validator = {
-				composedCheck = "org.eclipse.xtext.validation.NamesAreUniqueValidator"
+				// composedCheck = "org.eclipse.xtext.validation.NamesAreUniqueValidator"
 				// Generates checks for @Deprecated grammar annotations, an IssueProvider and a corresponding PropertyPage
 				generateDeprecationValidation = true
 			}

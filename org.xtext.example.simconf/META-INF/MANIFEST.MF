@@ -23,9 +23,9 @@ Export-Package: org.xtext.example.mydsl.domainmodel.impl,
  org.xtext.example.mydsl.generator,
  org.xtext.example.mydsl.validation,
  org.xtext.example.mydsl,
- org.xtext.example.mydsl.formatting2,
  org.xtext.example.mydsl.domainmodel,
  org.xtext.example.mydsl.domainmodel.util,
  org.xtext.example.mydsl.serializer,
- org.xtext.example.mydsl.parser.antlr
+ org.xtext.example.mydsl.parser.antlr,
+ org.xtext.example.mydsl.formatting2
 Import-Package: org.apache.log4j
