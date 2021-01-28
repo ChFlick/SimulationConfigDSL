@@ -37,7 +37,7 @@ class SimConfGenerator extends AbstractGenerator {
 
 		// Ensure that the src-gen folder is there
 		fsa.generateFile("empty", "")
-
+		
 		if (Files.isDirectory(Path.of(this.path))) {
 			Files.walk(Path.of(this.path)).map[it.toFile()].forEach[it.delete()]
 		}
