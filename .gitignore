@@ -1,3 +1,5 @@
+*.zip
+
 /.metadata/
 generated/
 src-gen/
