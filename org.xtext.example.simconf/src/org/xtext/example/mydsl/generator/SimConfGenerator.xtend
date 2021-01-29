@@ -37,9 +37,11 @@ class SimConfGenerator extends AbstractGenerator {
 
 		// Ensure that the src-gen folder is there
 		fsa.generateFile("empty", "")
-		
+
 		if (Files.isDirectory(Path.of(this.path))) {
-			Files.walk(Path.of(this.path)).map[it.toFile()].forEach[it.delete()]
+			Files.walk(Path.of(this.path))
+				.map[it.toFile()]
+				.forEach[it.directory ? FileUtils.deleteDir(it) : it.delete()]
 		}
 
 		val domainmodel = resource.contents.get(0) as Domainmodel
@@ -48,95 +50,41 @@ class SimConfGenerator extends AbstractGenerator {
 
 		for (config : domainmodel.config) {
 			if (config.name === Simulator.SUMO) {
+				// Generate static files
 				if (mode == Mode.SIMPLE) {
-					fsa.generateFile("start-sumo.sh", '''
-						#!/bin/bash
-						sumo -c ./generated.sumocfg
-					''')
-					fsa.generateFile("start-sumo-gui.sh", '''
-						#!/bin/bash
-						sumo-gui -c ./generated.sumocfg
-					''')
-
-					fsa.generateFile("start-sumo-traci.sh", '''
-						#!/bin/bash
-						sumo -c ./generated.sumocfg --remote-port 8081
-					''')
-
-					fsa.generateFile("README.md", '''
-						# SUMO Scenario
-						- Execute `start-sumo.sh` to run the scenario in SUMO
-						- Execute `start-sumo-gui.sh` to run the scenario in SUMO with GUI
-						- Execute `start-sumo-traci.sh` to run the scenario in SUMO with a TraCI Server listening on Port `8081`
-					''')
+					fsa.generateFile("start-sumo.sh", StaticSumoFiles.START_SH)
+					fsa.generateFile("start-sumo-gui.sh", StaticSumoFiles.START_GUI_SH)
+					fsa.generateFile("start-sumo-traci.sh", StaticSumoFiles.START_TRACI_SH)
+					fsa.generateFile("README.md", StaticSumoFiles.README)
 				}
-
-				val sumoCfgPath = "generated.sumocfg"
-				fsa.generateFile(sumoCfgPath, config.compile)
 
 				if (mode == Mode.DOCKER || mode == Mode.DOCKER_TRA_CI) {
-					fsa.generateFile("README.md", '''
-						# Dockerfile to run the SUMO Scenario
-						
-						## build						
-						To build the docker image run:
-						```
-						docker build -t sumo:latest .
-						``
-						
-						## run
-						To execute the docker image after it is built run:						
-						```
-						docker run -i «IF mode == Mode.DOCKER_TRA_CI» -p 8081:8081 «ENDIF» sumo
-						```
-						
-						«IF mode == Mode.DOCKER_TRA_CI»
-							## TraCI
-							When the container has started, you can connect your TraCI application at the container on port 8081.
-						«ENDIF»								
-					''')
-
-					fsa.generateFile("Dockerfile", '''
-						FROM ubuntu:bionic
-						
-						ENV SCRIPT_FOLDER /app
-						ENV SUMO_VERSION 1.8.0
-						ENV SUMO_HOME /usr/share/sumo
-						
-						RUN apt-get update && apt-get install -y \
-						    cmake \
-						    python3-pip \
-						    g++ \
-						    libxerces-c-dev libfox-1.6-dev libgdal-dev libproj-dev libgl2ps-dev \
-						    swig \
-						    wget
-						RUN wget http://downloads.sourceforge.net/project/sumo/sumo/version%20$SUMO_VERSION/sumo-src-$SUMO_VERSION.tar.gz
-						RUN tar xzf sumo-src-$SUMO_VERSION.tar.gz && \
-						    mv sumo-$SUMO_VERSION $SUMO_HOME && \
-						    rm sumo-src-$SUMO_VERSION.tar.gz
-						
-						RUN cd $SUMO_HOME  && \
-						    mkdir build/cmake-build && cd build/cmake-build  && \
-						    cmake ../..  && \
-						    make -j$(nproc)
-						
-						ENV PATH "$PATH:/$SUMO_HOME/bin"
-						
-						WORKDIR $SCRIPT_FOLDER
-											
-						COPY . .
-						
-						CMD ["sumo","-c","generated.sumocfg"«IF mode == Mode.DOCKER_TRA_CI»,"--remote-port","8081"«ENDIF»]
-					''')
+					fsa.generateFile("README.md", StaticSumoFiles.getDockerReadme(mode))
+					fsa.generateFile("Dockerfile", StaticSumoFiles.getDockerfile(mode))
 				}
+				
+				if (mode == Mode.MOSAIC) {
+					Files.createDirectories(Path.of(this.path.toString() + "/mapping"))
+					Files.createDirectory(Path.of(this.path.toString() + "/sumo"))
+					fsa.generateFile("scenario_config.json", StaticMosaicFiles.SCENARIO_CONFIG)
+					fsa.generateFile("runtime.json", StaticMosaicFiles.RUNTIME_JSON)
+					fsa.generateFile("mapping/mapping_config.json", StaticMosaicFiles.MAPPING_CONFIG)
+				}
+				
+				// Generate the actual sumocfg
+				val sumoCfgPath = mode == Mode.MOSAIC ? "sumo/generated.sumocfg" : "generated.sumocfg"
+				fsa.generateFile(sumoCfgPath, config.compile)
+				
 			}
 		}
 	}
 
 	def compile(Config config) '''
 		<configuration
+			« IF mode != Mode.MOSAIC »
 				xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 				xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd"
+			« ENDIF »
 		>
 			
 			«config.input.compile»
@@ -160,37 +108,39 @@ class SimConfGenerator extends AbstractGenerator {
 
 		if (input.input instanceof FileBasedInput) {
 			var fileInput = input.input as FileBasedInput
-			
-			if(mode == Mode.DOCKER || mode == Mode.DOCKER_TRA_CI) {
-				if(fileInput.netFile !== null) {
-					if(fileInput.netFile.indexOf("/") > -1) {
+
+			if (mode == Mode.DOCKER || mode == Mode.DOCKER_TRA_CI || mode == Mode.MOSAIC) {
+				val targetPath = mode == Mode.MOSAIC ? path + "/sumo/" : "path" + "/"
+				
+				if (fileInput.netFile !== null) {
+					if (fileInput.netFile.indexOf("/") > -1) {
 						Files.copy(
 							Path.of(fileInput.netFile),
-							Path.of(path + "/" + new File(fileInput.netFile).name),
+							Path.of(targetPath + new File(fileInput.netFile).name),
 							StandardCopyOption.REPLACE_EXISTING
 						)
 					}
-					
-					fileInput.routeFiles.list.forEach[
-						if(it.indexOf("/") > -1) {
+
+					fileInput.routeFiles.list.forEach [
+						if (it.indexOf("/") > -1) {
 							Files.copy(
 								Path.of(it),
-								Path.of(path + "/" + new File(it).name),
+								Path.of(targetPath + new File(it).name),
 								StandardCopyOption.REPLACE_EXISTING
 							)
 						}
 					]
-					
-					fileInput.additionalFiles.list.forEach[
-						if(it.indexOf("/") > -1) {
+
+					fileInput.additionalFiles.list.forEach [
+						if (it.indexOf("/") > -1) {
 							Files.copy(
 								Path.of(it),
-								Path.of(path + "/" + new File(it).name),
+								Path.of(targetPath + new File(it).name),
 								StandardCopyOption.REPLACE_EXISTING
 							)
 						}
 					]
-					
+
 					return '''
 						<input>
 							«IF fileInput.netFile !== null »
@@ -204,10 +154,10 @@ class SimConfGenerator extends AbstractGenerator {
 							«ENDIF»
 						</input>
 					'''
-					
+
 				}
 			}
-			
+
 			return '''
 				<input>
 					«IF fileInput.netFile !== null »
@@ -370,7 +320,7 @@ class SimConfGenerator extends AbstractGenerator {
 			</routing>
 		'''
 	}
-	
+
 	def compile(Processing processing) {
 		if (processing === null) {
 			return ""

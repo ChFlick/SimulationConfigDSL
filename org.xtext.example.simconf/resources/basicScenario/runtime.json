@@ -1,0 +1,48 @@
+{
+    "threads": 1,
+    "federates": [
+    	{
+            "id": "mapping",
+            "classname": "org.eclipse.mosaic.fed.mapping.ambassador.MappingAmbassador",
+            "configuration": "mapping_config.json",
+            "priority": 50,
+            "host": "local",
+            "port": 0,
+            "deploy": false,
+            "start": false,
+            "subscriptions": [
+                "VehicleRoutesInitialization",
+                "ScenarioTrafficLightRegistration",
+                "ScenarioVehicleRegistration"
+            ],
+            "javaClasspathEntries": []
+        },
+        {
+            "id": "sumo",
+            "classname": "org.eclipse.mosaic.fed.sumo.ambassador.SumoScenarioAmbassador",
+            "priority": 50,
+            "host": "local",
+            "port": 0,
+            "deploy": true,
+            "start": true,
+            "subscriptions": [
+                "VehicleSlowDown",
+                "VehicleRouteChange",
+                "VehicleLaneChange",
+                "TrafficLightStateChange",
+                "VehicleStop",
+                "VehicleResume",
+                "SumoTraciRequest",
+                "VehicleDistanceSensorActivation",
+                "VehicleParametersChange",
+                "VehicleSpeedChange",
+                "VehicleFederateAssignment",
+                "VehicleUpdates",
+                "InductionLoopDetectorSubscription",
+                "LaneAreaDetectorSubscription",
+                "TrafficLightSubscription"
+            ],
+            "javaClasspathEntries": []
+        }
+    ]
+}
