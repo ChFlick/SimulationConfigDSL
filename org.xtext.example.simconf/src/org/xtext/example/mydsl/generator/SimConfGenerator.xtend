@@ -63,16 +63,27 @@ class SimConfGenerator extends AbstractGenerator {
 					fsa.generateFile("Dockerfile", StaticSumoFiles.getDockerfile(mode))
 				}
 				
-				if (mode == Mode.MOSAIC) {
+				if (mode == Mode.MOSAIC || mode == Mode.MOSAIC_DOCKER) {
 					Files.createDirectories(Path.of(this.path.toString() + "/mapping"))
 					Files.createDirectory(Path.of(this.path.toString() + "/sumo"))
+					Files.createDirectory(Path.of(this.path.toString() + "/application"))
 					fsa.generateFile("scenario_config.json", StaticMosaicFiles.SCENARIO_CONFIG)
 					fsa.generateFile("runtime.json", StaticMosaicFiles.RUNTIME_JSON)
 					fsa.generateFile("mapping/mapping_config.json", StaticMosaicFiles.MAPPING_CONFIG)
+					fsa.generateFile("application/application_config.json", StaticMosaicFiles.APPLICATION_CONFIG)
+				}
+				
+				if(mode == Mode.MOSAIC) {
+					fsa.generateFile("README.md", StaticMosaicFiles.README)
+				}
+				
+				if(mode == Mode.MOSAIC_DOCKER) {
+					fsa.generateFile("Dockerfile", StaticMosaicFiles.DOCKERFILE)
+					fsa.generateFile("README.md", StaticMosaicFiles.README_DOCKER)
 				}
 				
 				// Generate the actual sumocfg
-				val sumoCfgPath = mode == Mode.MOSAIC ? "sumo/generated.sumocfg" : "generated.sumocfg"
+				val sumoCfgPath = mode == Mode.MOSAIC || mode == Mode.MOSAIC_DOCKER ? "sumo/generated.sumocfg" : "generated.sumocfg"
 				fsa.generateFile(sumoCfgPath, config.compile)
 				
 			}
@@ -109,8 +120,8 @@ class SimConfGenerator extends AbstractGenerator {
 		if (input.input instanceof FileBasedInput) {
 			var fileInput = input.input as FileBasedInput
 
-			if (mode == Mode.DOCKER || mode == Mode.DOCKER_TRA_CI || mode == Mode.MOSAIC) {
-				val targetPath = mode == Mode.MOSAIC ? path + "/sumo/" : "path" + "/"
+			if (mode != Mode.SIMPLE) {
+				val targetPath = mode == Mode.MOSAIC || mode == Mode.MOSAIC_DOCKER ? path + "/sumo/" : "path" + "/"
 				
 				if (fileInput.netFile !== null) {
 					if (fileInput.netFile.indexOf("/") > -1) {
@@ -174,8 +185,9 @@ class SimConfGenerator extends AbstractGenerator {
 		} else {
 			val NET_NAME = "generated.net.xml"
 			val ROUTE_NAME = "generated.rou.xml"
-			val NET_FILE = path + "/" + NET_NAME
-			val ROUTE_FILE = path + "/" + ROUTE_NAME
+			val localPath = mode == Mode.MOSAIC || mode == Mode.MOSAIC_DOCKER ?  path + "/sumo" : path
+			val NET_FILE = localPath + "/" + NET_NAME
+			val ROUTE_FILE = localPath + "/" + ROUTE_NAME
 
 			val generatorInput = input.input as GeneratorInput
 			val type = generatorInput.type
@@ -259,7 +271,8 @@ class SimConfGenerator extends AbstractGenerator {
 
 			return '''
 				<input>
-					«IF mode == Mode.DOCKER || mode == Mode.DOCKER_TRA_CI »
+					«IF mode == Mode.DOCKER || mode == Mode.DOCKER_TRA_CI ||
+						mode == Mode.MOSAIC || mode == Mode.MOSAIC_DOCKER »
 						<net-file value="«NET_NAME»"/>
 						<route-files value="«ROUTE_NAME»"/>
 					«ELSE»
