@@ -55,7 +55,7 @@ Time:
 	{Time} 'time' '{'
 	(('start_at' start=INT 'seconds')? &
 	('end_at' end=INT 'seconds')? &
-	('steplength' steplength=INT 'seconds')?)
+	('steplength' steplength=DOUBLE 'seconds')?)
 	'}';
 
 Routing:
